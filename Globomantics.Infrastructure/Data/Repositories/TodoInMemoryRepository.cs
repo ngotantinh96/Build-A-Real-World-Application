@@ -18,9 +18,9 @@ public class TodoInMemoryRepository<T> : IRepository<T> where T : Todo
         return Task.FromResult<IEnumerable<T>>(items);
     }
 
-    public Task<T> FindByAsync(string value)
+    public Task<T> FindByAsync(string title)
     {
-        var item = Items.Values.First(x => x.Title == value);
+        var item = Items.Values.First(x => x.Title == title);
         return Task.FromResult(item);
     }
 

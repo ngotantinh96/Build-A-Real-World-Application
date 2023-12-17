@@ -1,7 +1,9 @@
 ﻿using Globomantics.Domain;
+using Globomantics.Infrastructure.Data;
 using Globomantics.Infrastructure.Data.Repositories;
 using Globomantics.Windows.Factories;
 using Globomantics.Windows.ViewModels;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -23,9 +25,12 @@ public partial class App : Application
 
         var serviceCollection = new ServiceCollection();
 
-        serviceCollection.AddSingleton<IRepository<TodoTask>, TodoInMemoryRepository<TodoTask>>();
-        serviceCollection.AddSingleton<IRepository<Feature>, TodoInMemoryRepository<Feature>>();
-        serviceCollection.AddSingleton<IRepository<Bug>, TodoInMemoryRepository<Bug>>();
+        serviceCollection.AddDbContext<GlobomanticsDbContext>(ServiceLifetime.Scoped);
+
+        serviceCollection.AddSingleton<IRepository<TodoTask>, TodoTaskRepository>();
+        serviceCollection.AddSingleton<IRepository<Feature>, FeatureRepository>();
+        serviceCollection.AddSingleton<IRepository<Bug>, BugRepository>();
+        serviceCollection.AddSingleton<IRepository<User>, UserRepository>();
 
         serviceCollection.AddTransient<TodoViewModelFactory>();
         serviceCollection.AddTransient<FeatureViewModel>();
@@ -37,8 +42,26 @@ public partial class App : Application
         ServiceProvider = serviceCollection.BuildServiceProvider();
     }
 
-    private void OnStartup(object sender, StartupEventArgs e)
+    private async void OnStartup(object sender, StartupEventArgs e)
     {
+        var context = ServiceProvider.GetRequiredService<GlobomanticsDbContext>();
+        await context.Database.MigrateAsync();
+
+        var user = await context.Users.FirstOrDefaultAsync();
+
+        if(user is null)
+        {
+            user = new Infrastructure.Data.Models.User
+            {
+                Name = "Otis Ngo"
+            };
+
+            await context.Users.AddAsync(user);
+            await context.SaveChangesAsync();
+        }
+
+        App.CurrentUser = DataToDomainMapping.MapUser(user);
+
         var mainWindow = ServiceProvider.GetRequiredService<MainWindow>();
 
         mainWindow?.Show();

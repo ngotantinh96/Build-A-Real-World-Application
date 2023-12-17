@@ -67,6 +67,7 @@ public partial class MainWindow : Window
     private UserControl CreateUserControl(string type, 
         Todo? model = default)
     {
+        mainViewModel.SelectedTodoType = type;
         var parentTasks = mainViewModel.Unfinished.ToArray();
         var viewModel = todoViewModelFactory.CreateViewModel(type, parentTasks, model);
         viewModel.ShowError = (message) => MessageBox.Show(message);
@@ -91,7 +92,7 @@ public partial class MainWindow : Window
 
         CreateTodoControlContainer.Children.Clear();
 
-        var control = CreateUserControl(TodoType.SelectedValue.ToString() ?? "");
+        var control = CreateUserControl(mainViewModel.SelectedTodoType ?? "");
 
         CreateTodoControlContainer.Children.Add(control);
     }

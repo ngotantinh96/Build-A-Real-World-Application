@@ -13,7 +13,7 @@ public class FeatureViewModel : BaseTodoViewModel<Feature>
     private readonly IRepository<Feature> repository;
 
     private string? description;
-
+    private DateTimeOffset dueDate;
     public FeatureViewModel(IRepository<Feature> repository) : base()
     {
        this.repository = repository;
@@ -27,6 +27,16 @@ public class FeatureViewModel : BaseTodoViewModel<Feature>
         {
             description = value;
             OnPropertyChanged(nameof(Description));
+        }
+    }
+
+    public DateTimeOffset DueDate 
+    { 
+        get => dueDate; 
+        set
+        {
+            dueDate = value;
+            OnPropertyChanged(nameof(DueDate));
         }
     }
 
@@ -73,5 +83,6 @@ public class FeatureViewModel : BaseTodoViewModel<Feature>
 
         base.UpdateModel(feature);
         Description = feature.Description;
+        DueDate = feature.DueDate;
     }
 }

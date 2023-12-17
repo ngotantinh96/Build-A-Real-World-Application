@@ -1,6 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
 using Globomantics.Domain;
+using Globomantics.Infrastructure.Data.Repositories;
 using Globomantics.Windows.Messages;
 using System;
 using System.Collections.Generic;
@@ -17,6 +18,9 @@ public class MainViewModel : ObservableObject,
     private string statusText = "Everything is OK!";
     private bool isLoading;
     private bool isInitialized;
+    private readonly IRepository<User> userRepository;
+    private readonly IRepository<TodoTask> todoRepository;
+    private string selectedTodoType;
 
     public string StatusText 
     {
@@ -39,6 +43,17 @@ public class MainViewModel : ObservableObject,
         }
     }
 
+
+    public string SelectedTodoType 
+    { 
+        get => selectedTodoType; 
+        set
+        {
+            selectedTodoType = value;
+            OnPropertyChanged(nameof(SelectedTodoType));
+        }
+    }
+
     public ICommand ExportCommand { get; set; }
     public ICommand ImportCommand { get; set; }
 
@@ -51,7 +66,8 @@ public class MainViewModel : ObservableObject,
     public ObservableCollection<Todo> Unfinished { get; set; } = new();
     public ObservableCollection<Todo> Completed { get; set; } = new();
 
-    public MainViewModel()
+
+    public MainViewModel(IRepository<User> userRepository, IRepository<TodoTask> todoRepository)
     {
         WeakReferenceMessenger.Default.Register<TodoSavedMessage>(this, (sender, message) =>
         {
@@ -92,6 +108,8 @@ public class MainViewModel : ObservableObject,
                 Unfinished.Remove(unfinished);
             }
         });
+        this.userRepository = userRepository;
+        this.todoRepository = todoRepository;
     }
 
     private void ReplaceOrAdd(ObservableCollection<Todo> collection, Todo item)
@@ -111,6 +129,27 @@ public class MainViewModel : ObservableObject,
     public async Task InitializeAsync()
     {
         if (isInitialized) return;
+
+        App.CurrentUser = await userRepository.FindByAsync("Otis Ngo");
+
+        var items = await todoRepository.AllAsync();
+
+        var itemsDue = items.Count(i => i.DueDate.ToLocalTime() > DateTimeOffset.Now);
+
+        StatusText = $"Welcome {App.CurrentUser.Name}! " +
+            $"You have {itemsDue} items passed due date.";
+
+        foreach (var item in items.Where(item => !item.IsDeleted))
+        {
+            if (item.IsCompleted)
+            {
+                Completed.Add(item);
+            }
+            else
+            {
+                Unfinished.Add(item);
+            }
+        }
 
         isInitialized = true;
     }

@@ -3,7 +3,7 @@
 public interface IRepository<T>
 {
     Task<T> GetAsync(Guid id);
-    Task<T> FindByAsync(string value);
+    Task<T> FindByAsync(string title);
     Task<IEnumerable<T>> AllAsync();
     Task AddAsync(T item);
     Task SaveChangesAsync();
