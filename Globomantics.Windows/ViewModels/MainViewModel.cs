@@ -1,13 +1,18 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using Globomantics.Domain;
 using Globomantics.Infrastructure.Data.Repositories;
+using Globomantics.Windows.Json;
 using Globomantics.Windows.Messages;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Input;
 
 namespace Globomantics.Windows.ViewModels;
@@ -110,6 +115,83 @@ public class MainViewModel : ObservableObject,
         });
         this.userRepository = userRepository;
         this.todoRepository = todoRepository;
+
+        ExportCommand = new RelayCommand(async () =>
+        {
+            await ExportAsync();
+        });
+
+        ImportCommand = new RelayCommand(async () =>
+        {
+            await ImportAsync();
+        });
+    }
+
+    private async Task ImportAsync()
+    {
+        var fileNames = ShowOpenFileDialog?.Invoke();
+
+        if (fileNames is null || !fileNames.Any()) 
+        {
+            return;
+        }
+
+        var fileName = fileNames.ElementAt(0);
+
+        if(string.IsNullOrWhiteSpace(fileName))
+        {
+            ShowError?.Invoke("Please select a file to import");
+        }
+
+        var json = await File.ReadAllTextAsync(fileName);
+
+        var items = JsonConvert.DeserializeObject<IEnumerable<TodoTask>>(json, new JsonSerializerSettings
+        {
+            TypeNameHandling = TypeNameHandling.All,
+            SerializationBinder = new SerializationBinder()
+        });
+
+        if(items is null|| !items.Any())
+        {
+            return;
+        }
+
+        foreach (var item in items)
+        {
+            await todoRepository.AddAsync(item);
+
+            if(item.IsCompleted)
+            {
+                Completed.Add(item);
+            }
+            else if(!item.IsDeleted)
+            {
+                Unfinished.Add(item);
+            }
+        }
+
+        await todoRepository.SaveChangesAsync();
+
+        IsLoading = true;
+
+        ShowAlert?.Invoke("Data Imported");
+        IsLoading = false;
+    }
+
+    private async Task ExportAsync()
+    {
+        var fileName = ShowSaveFileDialog?.Invoke();
+        IsLoading = true;
+        var items = await todoRepository.AllAsync();
+        var json = JsonConvert.SerializeObject(items, new JsonSerializerSettings
+        {
+            TypeNameHandling = TypeNameHandling.All,
+            SerializationBinder = new SerializationBinder()
+        });
+
+        await File.WriteAllTextAsync(fileName!, json);
+        IsLoading = false;
+        ShowAlert?.Invoke("Data Exported");
     }
 
     private void ReplaceOrAdd(ObservableCollection<Todo> collection, Todo item)
