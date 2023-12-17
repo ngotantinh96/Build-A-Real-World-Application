@@ -5,6 +5,7 @@ using Globomantics.Domain;
 using Globomantics.Infrastructure.Data.Repositories;
 using Globomantics.Windows.Json;
 using Globomantics.Windows.Messages;
+using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -26,6 +27,7 @@ public class MainViewModel : ObservableObject,
     private readonly IRepository<User> userRepository;
     private readonly IRepository<TodoTask> todoRepository;
     private string selectedTodoType;
+    private string searchText = "";
 
     public string StatusText 
     {
@@ -59,8 +61,20 @@ public class MainViewModel : ObservableObject,
         }
     }
 
+
+    public string SearchText 
+    { 
+        get => searchText; 
+        set
+        {
+            searchText = value;
+            OnPropertyChanged(nameof(SearchText));
+        }
+    }
+
     public ICommand ExportCommand { get; set; }
     public ICommand ImportCommand { get; set; }
+    public ICommand SearchCommand { get; set; }
 
     public Action<string>? ShowAlert { get; set; }
     public Action<string>? ShowError { get; set; }
@@ -70,7 +84,6 @@ public class MainViewModel : ObservableObject,
 
     public ObservableCollection<Todo> Unfinished { get; set; } = new();
     public ObservableCollection<Todo> Completed { get; set; } = new();
-
 
     public MainViewModel(IRepository<User> userRepository, IRepository<TodoTask> todoRepository)
     {
@@ -124,6 +137,23 @@ public class MainViewModel : ObservableObject,
         ImportCommand = new RelayCommand(async () =>
         {
             await ImportAsync();
+        });
+
+        SearchCommand = new RelayCommand(async () =>
+        {
+            var todo = await todoRepository.AllAsync();
+            var query = todo.AsQueryable().Where(x => !x.IsCompleted && !x.IsDeleted);
+            if (!string.IsNullOrWhiteSpace(searchText) && !searchText.Equals("*", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(x => x.Title.Contains(searchText, StringComparison.OrdinalIgnoreCase));
+            }
+
+            Unfinished.Clear();
+
+            foreach (var item in query)
+            {
+                Unfinished.Add(item);
+            }
         });
     }
 
